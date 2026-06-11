@@ -97,7 +97,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { queryFileApi, registerUserApi, updateUserApi } from '@/api/UserApi'
+import { queryFileApi, registerUserApi, updateUserApi, deleteUserApi } from '@/api/UserApi'
 import { QueryFileDto } from "@/api/dto.ts"
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -175,8 +175,9 @@ const editRules: FormRules = {
 
 // 获取用户列表
 const loadStoreFileData = () => {
+  console.log('loaduserData called, page:', queryFileDto.value.page)
   isLoading.value = true;
-  const params = { ...queryFileDto.value, page: queryFileDto.value.page - 1 }
+  const params = { ...queryFileDto.value }
   queryFileApi(params)
       .then((res) => {
         if (res.code == 0) {
@@ -191,6 +192,7 @@ const loadStoreFileData = () => {
         }
       })
       .catch((err) => {
+        console.error('queryFileApi error:', err)
         ElMessage({
           type: "error",
           message: err,
@@ -256,9 +258,19 @@ const handleDelete = (row: UserInfo) => {
       cancelButtonText: '取消',
       type: 'warning',
     }
-  ).then(() => {
-    // TODO: 实现删除用户功能
-    ElMessage.info('删除用户功能待实现')
+  ).then(async () => {
+    try {
+      const res = await deleteUserApi(row.id)
+      if (res.code === 0) {
+        ElMessage.success('删除用户成功')
+        loadStoreFileData()
+      } else {
+        ElMessage.error(res.message || '删除失败')
+      }
+    } catch (error) {
+      console.error('deleteUserApi error:', error)
+      ElMessage.error('删除失败')
+    }
   }).catch(() => {
     ElMessage.info('已取消删除')
   })
@@ -266,40 +278,52 @@ const handleDelete = (row: UserInfo) => {
 
 // 提交表单
 const submitForm = async () => {
-  if (!userFormRef.value) return
+  console.log('submitForm called', { isEdit: isEdit.value, dialogVisible: dialogVisible.value, formRef: !!userFormRef.value })
   
-  await userFormRef.value.validate(async (valid) => {
-    if (valid) {
-      try {
-        let response
-        if (isEdit.value && currentUserId.value) {
-          // 编辑用户
-          response = await updateUserApi({
-            id: currentUserId.value,
-            name: userForm.value.name,
-            userName: userForm.value.userName,
-            phone: userForm.value.phone,
-            sex: userForm.value.sex,
-            idNumber: userForm.value.idNumber
-          })
-        } else {
-          // 新增用户
-          response = await registerUserApi(userForm.value)
-        }
-
-        if (response.code === 0) {
-          ElMessage.success(isEdit.value ? '编辑用户成功' : '添加用户成功')
-          dialogVisible.value = false
-          loadStoreFileData() // 刷新用户列表
-        } else {
-          ElMessage.error(response.message || '操作失败')
-        }
-      } catch (error) {
-        console.error('Error:', error)
-        ElMessage.error('操作失败')
-      }
+  if (!userFormRef.value) {
+    console.error('userFormRef.value is null/undefined')
+    ElMessage.error('表单未初始化')
+    return
+  }
+  
+  try {
+    const valid = await userFormRef.value.validate()
+    console.log('Validation result:', valid)
+    if (!valid) {
+      console.log('Validation failed, returning early')
+      return
     }
-  })
+    
+    console.log('Validation passed, proceeding to API call')
+    let response
+    if (isEdit.value && currentUserId.value) {
+      console.log('Calling updateUserApi with:', { id: currentUserId.value, ...userForm.value })
+      response = await updateUserApi({
+        id: currentUserId.value,
+        name: userForm.value.name,
+        userName: userForm.value.userName,
+        phone: userForm.value.phone,
+        sex: userForm.value.sex,
+        idNumber: userForm.value.idNumber
+      })
+    } else {
+      console.log('Calling registerUserApi with:', userForm.value)
+      response = await registerUserApi(userForm.value)
+    }
+
+    console.log('API response:', response)
+
+    if (response.code === 0) {
+      ElMessage.success(isEdit.value ? '编辑用户成功' : '添加用户成功')
+      dialogVisible.value = false
+      loadStoreFileData() // 刷新用户列表
+    } else {
+      ElMessage.error(response.message || '操作失败')
+    }
+  } catch (error) {
+    console.error('submitForm error:', error)
+    ElMessage.error('操作失败')
+  }
 }
 
 onMounted(() => {

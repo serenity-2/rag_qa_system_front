@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import {BASE_URL} from "@/http/config.ts";
+import service from "@/http";
 
 const prompt = ref('')
 const generatedImage = ref('')
@@ -48,11 +48,11 @@ const generateImage = async () => {
   
   isLoading.value = true
   try {
-    const response = await fetch(BASE_URL+`/draw/image?prompt=${encodeURIComponent(prompt.value)}`)
-    if (response.ok) {
-      const blob = await response.blob()
-      generatedImage.value = URL.createObjectURL(blob)
-    }
+    const blob = await service.get('/draw/image', {
+      params: { prompt: prompt.value },
+      responseType: 'blob'
+    }) as unknown as Blob
+    generatedImage.value = URL.createObjectURL(blob)
   } catch (error) {
     console.error('生成图片失败:', error)
   } finally {

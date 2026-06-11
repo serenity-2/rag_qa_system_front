@@ -7,7 +7,8 @@ export const UserApi = {
   Register: "/user/register",
   Update: "/user/update",
   Login: "/user/login",
-  UpdatePassword: "/user/updatePassword"
+  UpdatePassword: "/user/updatePassword",
+  Delete: "/user/delete"
 };
 
 interface RegisterUserDto {
@@ -56,4 +57,9 @@ export const updateUserApi = async (data: UpdateUserDto): Promise<Res> => {
 // 修改密码
 export const updatePasswordApi = async (data: UpdatePasswordDto) => {
   return service.post(UserApi.UpdatePassword, data);
+};
+
+// 删除用户
+export const deleteUserApi = async (id: number): Promise<Res> => {
+  return service.delete(UserApi.Delete + "/" + id);
 };
